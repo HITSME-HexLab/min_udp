@@ -27,13 +27,6 @@
 /* internal project header files */
 #include "udp_basic.h"
 
-enum class CommBoardState : uint8_t
-{
-    kIdle,   /* disable motors */
-    kNormal, /* enable motors */
-    kError,  /* enter damping mode to protect robot */
-};
-
 namespace udp
 {
 /**
