@@ -45,12 +45,6 @@ bool UdpComm::init(void)
         p_client_ = std::make_unique<udp_client_server::udp_client>(target_ip_, target_port_);
         p_server_ = std::make_unique<udp_client_server::udp_server>("0.0.0.0", local_port_);
     }
-    // catch (std::runtime_error &error)
-    // {
-    //     ROS_ERROR_STREAM(error.what() << std::endl
-    //                                   << "try to launch the program with super user permissions");
-    //     return false;
-    // }
     catch (const std::exception &error)
     {
         std::cerr << "UDP init failed"<< error.what()<< std::endl;

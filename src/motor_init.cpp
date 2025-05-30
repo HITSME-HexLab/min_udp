@@ -7,38 +7,33 @@
  * @copyright Copyright (C) 2025.
  *
  */
-/* related header files */
-#include "udp_comm.h"
 #include "motor_init.h"
+#include "udp_comm.h"
+#include <cmath>
 #include <iostream>
-#include <string>
-#include <unistd.h>
-#include <ctime>
-#include <chrono>
-#include <Eigen/Dense>
+#include <vector>
+#include <algorithm> 
+#include <unistd.h> 
 
-UdpComm udp_comm(7, "192.168.1.10", 10);
-udp::ReceiveData udp_receive_data = {};
-udp::SendData udp_send_data = {};
+extern UdpComm udp_comm;
+extern udp::ReceiveData udp_receive_data;
+extern udp::SendData udp_send_data;
 
-int main(int argc, char *argv[])
+//double motorZeroPositions[18] = {0.0}; // 初始化为零
+
+void InitMotors(UdpComm &udp_comm, udp::SendData &send_data, udp::ReceiveData &receive_data)
 {
-
-    if (!udp_comm.init())
-    {
-        printf("udp init failed\n");
-        exit(1);
-    }
-
-    udp_send_data.state = static_cast<uint8_t>(CommBoardState::kNormal);
-    ProtectMotors(udp_comm, udp_send_data, udp_receive_data);
-
-    // Now this will compile fine
     Timer timer_;
     int calibrationStep = -1;
     int forceControlTime = 0;
     int joint_num = 0;
     int sum_flag = 0;
+    
+    // 将const变量和静态变量移到switch外面，避免跨变量初始化跳转
+    const int maxK = 200;  // 定义根关节最大插值次数
+    static int kk = 0;     // 根关节静态计数器
+    const int maxK2 = 200; // 定义膝关节和踝关节最大插值次数
+    static int kk2 = 0;    // 膝关节和踝关节静态计数器
 
     Eigen::Matrix<bool, 3, 6> init_finished_flag;
     Eigen::MatrixXd current_pos(3, 6);
@@ -49,7 +44,6 @@ int main(int argc, char *argv[])
     {
         timer_.start();
 
-        //  标定程序
         switch (calibrationStep)
         {
         case -1: // 给定力控命令
@@ -125,12 +119,9 @@ int main(int argc, char *argv[])
             }
             break;
 
-        case 1: // 根关节回0度位置
-        {
+        case 1: // 根关节回0度位置        
             std::cout << "进入根关节回0度状态" << std::endl;
-
-            const int maxK = 200; // 定义最大插值次数
-            static int kk = 0;    // 静态计数器用于插值
+            
             kk++;
             if (kk > maxK)
                 kk = maxK;
@@ -166,8 +157,7 @@ int main(int argc, char *argv[])
             if (kk == maxK) // 完成回零过程
             {
                 calibrationStep = 2;
-            }
-        }
+            }        
         break;
 
         case 2:
@@ -262,8 +252,6 @@ int main(int argc, char *argv[])
 
         case 4: // 膝关节和踝关节回0度位置            
             std::cout << "进入膝关节和踝关节回0度位置状态" << std::endl;
-            const int maxK2 = 200;
-            static int kk2 = 0;
             kk2++;
             if(kk2 > maxK2) kk2 = maxK2;            
             
@@ -298,27 +286,73 @@ int main(int argc, char *argv[])
             }
             
         break;
-
-        // case 99:        
-        //     ProtectMotors(udp_comm, udp_send_data, udp_receive_data);
-        //     std::cout << "进入保护状态" << std::endl;        
-        // break;
         }
+        
         last_pos = current_pos;
 
-        udp_send_data.state = static_cast<uint8_t>(CommBoardState::kNormal);
-        udp_comm.setSendData(udp_send_data);
+        send_data.state = static_cast<uint8_t>(CommBoardState::kNormal);
+        udp_comm.setSendData(send_data);
         udp_comm.send();
 
         timer_.stop();
         float control_frequency = 100.0;
+        
         double time_compensate =
             1000. / control_frequency - timer_.elapsedMilliseconds();
 
         if (time_compensate > 0)
         {
-            usleep(static_cast<int>(time_compensate * 1000)); // 将毫秒转换为微秒
+            usleep(static_cast<int>(time_compensate * 1000));
         }
     }
-    return 0;
 }
+
+void ProtectMotors(UdpComm &udp_comm, udp::SendData &send_data, udp::ReceiveData &receive_data)
+{
+    for(int i = 0; i < 18; ++i)
+    {
+        send_data.udp_motor_send[i].torque = 0.0;
+        send_data.udp_motor_send[i].kp = 0.0;
+        send_data.udp_motor_send[i].kd = 0.0;
+    }    
+    udp_comm.setSendData(send_data);
+    udp_comm.send();
+}
+
+//extern double motorZeroPositions[18]; 
+
+// void sendMotorCommand(int motorIndex, float jointAngle, float kp, float kd, float torque)
+// {
+//     if(motorIndex < 0 || motorIndex >= 18) {
+//         std::cerr << "错误：电机索引" << motorIndex << "超出范围(0-17)" << std::endl;
+//         return;
+//     }
+    
+//     // 计算补偿后的角度（加上零位点）
+//     float compensatedAngle = jointAngle + motorZeroPositions[motorIndex];
+    
+//     // 向电机发送命令
+//     udp_send_data.udp_motor_send[motorIndex].pos = compensatedAngle;
+//     udp_send_data.udp_motor_send[motorIndex].kp = kp;
+//     udp_send_data.udp_motor_send[motorIndex].kd = kd;
+//     udp_send_data.udp_motor_send[motorIndex].torque = torque;
+// }
+
+// void sendLegCommand(int legIndex, float hipAngle, float kneeAngle, float ankleAngle, 
+//                    float kp, float kd, float torque)
+// {
+//     if(legIndex < 0 || legIndex >= 6) {
+//         std::cerr << "错误：腿索引" << legIndex << "超出范围(0-5)" << std::endl;
+//         return;
+//     }
+    
+//     // 计算三个关节对应的电机索引
+//     int hipMotorIndex = legIndex * 3;      // 髋关节
+//     int kneeMotorIndex = legIndex * 3 + 1; // 膝关节
+//     int ankleMotorIndex = legIndex * 3 + 2; // 踝关节
+    
+//     // 发送命令到三个关节
+//     sendMotorCommand(hipMotorIndex, hipAngle, kp, kd, torque);
+//     sendMotorCommand(kneeMotorIndex, kneeAngle, kp, kd, torque);
+//     sendMotorCommand(ankleMotorIndex, ankleAngle, kp, kd, torque);
+// }

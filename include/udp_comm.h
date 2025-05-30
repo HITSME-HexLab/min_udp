@@ -33,6 +33,7 @@ enum class CommBoardState : uint8_t
     kNormal, /* enable motors */
     kError,  /* enter damping mode to protect robot */
 };
+
 namespace udp
 {
 /**
