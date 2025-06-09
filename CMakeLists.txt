@@ -3,12 +3,10 @@ project(min_udp)
 set(CMAKE_CXX_STANDARD 17)
 
 find_package(Eigen3 REQUIRED)
-find_package(catkin REQUIRED COMPONENTS)
 
 include_directories(
   include
   ${EIGEN3_INCLUDE_DIR}
-  ${catkin_INCLUDE_DIRS}
 )
 
 set(SRC_FILES
@@ -24,16 +22,16 @@ add_executable(test_udp test/test_udp.cpp)
 add_executable(protect_motor test/protect_motor.cpp)
 
 target_link_libraries(test_udp min_udp
-  pthread ${catkin_LIBRARIES}
+  pthread
 )
 
 add_executable(test_udp2 test/test_udp2.cpp)
 target_link_libraries(test_udp2 min_udp
-  pthread ${catkin_LIBRARIES}
+  pthread
 )
 
 target_link_libraries(protect_motor min_udp
-  pthread ${catkin_LIBRARIES}
+  pthread
 )
 
 install(TARGETS min_udp test_udp protect_motor

@@ -20,16 +20,17 @@
 
 void InitMotors(UdpComm &udp_comm, udp::SendData &send_data, udp::ReceiveData &receive_data);
 
-void InitLegMotors(UdpComm &udp_comm, udp::SendData &send_data, udp::ReceiveData &receive_data, int leg_index);
-
 void ProtectMotors(UdpComm &udp_comm, udp::SendData &send_data, udp::ReceiveData &receive_data);
 
-void InitMotors2(UdpComm &udp_comm, udp::SendData &send_data, udp::ReceiveData &receive_data);
-
-void sendMotorCommand(int motorIndex, float jointAngle, float kp, float kd, float torque);
-
+// 设置电机零点位置
+void setMotorZeroPositions(const double* zeroPositions);
+// 获取电机零点位置
+double* getMotorZeroPositions();
+// 发送单个电机命令
+void sendMotorCommand(int motorIndex, float jointAngle, float kp, float kd, float torque, udp::SendData &send_data);
+// 发送单条腿的所有关节命令
 void sendLegCommand(int legIndex, float hipAngle, float kneeAngle, float ankleAngle, 
-                   float kp, float kd, float torque);
+                   float kp, float kd, float torque, udp::SendData &send_data);
 
 #endif // MOTOR_INIT_H
 
